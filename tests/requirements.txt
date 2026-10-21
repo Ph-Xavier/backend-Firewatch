@@ -1,0 +1,31 @@
+# FireWatch - Backend
+# Python 3.11+ (validado em Python 3.13.14 / Windows)
+#
+# Versoes fixadas de acordo com o ambiente validado (Python 3.13).
+# scipy e python-dotenv sao usados no treinamento (ml/) e no carregamento do .env.
+
+# --- Database ---
+asyncpg==0.32.0
+
+# --- API ---
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
+pydantic==2.13.5
+pydantic-settings==2.15.0
+
+# --- HTTP client (Open-Meteo) ---
+httpx==0.28.1
+shapely==2.2.0
+
+# --- Machine Learning ---
+scikit-learn==1.8.0
+pandas==3.0.3
+numpy==2.4.4
+joblib==1.5.3
+scipy==1.17.1
+
+# --- Configuracao (.env) ---
+python-dotenv==1.2.4
+
+# --- Testes ---
+pytest==9.1.1
