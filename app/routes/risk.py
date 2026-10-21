@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 
-from app.db import db
+from app.models.regional import RegionalRequest, RegionalResponse
 from app.models.schemas import LocationRequest, RiskResponse
 from app.services.prediction_service import (
     ModelNotAvailableError,
     prediction_service,
+)
+from app.services.regional_service import (
+    OutsideCoverageError,
+    RegionalBusyError,
+    regional_service,
 )
 from app.services.weather_service import WeatherServiceError, weather_service
 
@@ -19,10 +24,17 @@ logger = logging.getLogger(__name__)
 risk_router = APIRouter(prefix="/api/v1", tags=["risco"])
 
 
-async def get_db():
-    """Dependency que fornece uma conexão do pool de DB."""
-    async with db.get_connection() as conn:
-        yield conn
+@risk_router.post("/risco-regional", response_model=RegionalResponse,
+                  summary="Amostra até nove zonas de risco no Brasil")
+async def risco_regional(localizacao: RegionalRequest) -> RegionalResponse:
+    try:
+        return await regional_service.analyze(localizacao.latitude, localizacao.longitude)
+    except OutsideCoverageError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RegionalBusyError as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except ModelNotAvailableError as exc:
+        raise HTTPException(status_code=503, detail="Modelo de previsão indisponível.") from exc
 
 
 @risk_router.post(
@@ -64,18 +76,3 @@ async def prever_risco(localizacao: LocationRequest) -> RiskResponse:
         ) from exc
 
     return RiskResponse(**resultado)
-
-
-@risk_router.get("/db-test", tags=["geral"], summary="Testa conexão com banco de dados")
-async def db_test(conn=Depends(get_db)):
-    """Testa a conexão com o banco de dados."""
-    try:
-        result = await conn.fetchrow(
-            "SELECT current_user AS usuario, current_database() AS banco"
-        )
-        return {"status": "ok", "usuario": str(result["usuario"]), "banco": str(result["banco"])}
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao conectar com o banco de dados: {exc}",
-        ) from exc
